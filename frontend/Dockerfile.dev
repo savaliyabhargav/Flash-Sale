@@ -1,0 +1,14 @@
+# Development image only. Runs the Next.js dev server against mounted source.
+FROM node:24-alpine
+
+WORKDIR /app
+
+# Copy manifests first so Docker can cache the npm install layer.
+COPY package.json package-lock.json* ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]

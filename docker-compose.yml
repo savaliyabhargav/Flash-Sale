@@ -1,0 +1,109 @@
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — the source of truth for all data.
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    container_name: flashsale-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      # Exposed so you can also connect from DBeaver / IntelliJ on the host.
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Other services wait for this to pass before they start.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [flashsale]
+
+  # ---------------------------------------------------------------------------
+  # pgAdmin — browser GUI for inspecting the database.
+  # ---------------------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: flashsale-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      # Skips the login screen — fine for local development only.
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "${PGADMIN_PORT}:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+      # Pre-registers the postgres connection so there is nothing to set up by hand.
+      - ./infra/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [flashsale]
+
+  # ---------------------------------------------------------------------------
+  # Spring Boot backend.
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: flashsale-backend
+    environment:
+      # "postgres" here is the service name above — Docker resolves it to that
+      # container's IP on the shared network. Not localhost: inside a container,
+      # localhost means the container itself.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:${FRONTEND_PORT}
+    ports:
+      - "${BACKEND_PORT}:8080"
+    volumes:
+      # Your source code, live from the host.
+      - ./backend/src:/app/src
+      - ./backend/pom.xml:/app/pom.xml
+      # Named volume so downloaded Maven dependencies survive rebuilds.
+      - maven-cache:/root/.m2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [flashsale]
+
+  # ---------------------------------------------------------------------------
+  # Next.js frontend.
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: flashsale-frontend
+    environment:
+      # NEXT_PUBLIC_ variables are readable by the browser. The browser runs on
+      # your host, so it must use localhost — not the "backend" service name.
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:${BACKEND_PORT}
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "${FRONTEND_PORT}:3000"
+    volumes:
+      - ./frontend:/app
+      # Anonymous volumes keep the container's own installed deps and build cache
+      # from being hidden by the host folder mounted above.
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks: [flashsale]
+
+volumes:
+  postgres-data:
+  pgadmin-data:
+  maven-cache:
+
+networks:
+  flashsale:
+    driver: bridge

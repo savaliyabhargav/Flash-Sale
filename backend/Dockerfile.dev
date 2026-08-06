@@ -1,0 +1,17 @@
+# Development image only. It runs Maven directly so the container can rebuild
+# from mounted source. The production image will be a slim multi-stage build.
+FROM maven:3.9-eclipse-temurin-21
+
+WORKDIR /app
+
+# Copy the dependency manifest on its own first. Docker caches this layer, so
+# dependencies are only re-downloaded when pom.xml actually changes.
+COPY pom.xml .
+RUN mvn -B -q dependency:go-offline
+
+COPY src ./src
+
+# 8080 = the app. 35729 = devtools live-reload.
+EXPOSE 8080 35729
+
+CMD ["mvn", "-B", "spring-boot:run"]

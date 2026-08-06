@@ -1,0 +1,26 @@
+# --- Java / Maven ---
+target/
+*.class
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+npm-debug.log*
+next-env.d.ts
+
+# --- Editors ---
+.idea/
+.vscode/
+*.iml
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Secrets ---
+# The root .env holds local-dev-only values and IS committed on purpose.
+# Anything named .env.local or .env.production is real and must stay out.
+.env.local
+.env.*.local
+.env.production

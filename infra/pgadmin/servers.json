@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Flash-Sale (local)",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "flashsale",
+      "Username": "flashsale",
+      "SSLMode": "prefer",
+      "Comment": "Auto-registered by docker-compose. Password is in the root .env file."
+    }
+  }
+}

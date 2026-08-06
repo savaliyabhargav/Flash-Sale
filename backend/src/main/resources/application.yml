@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: flash-sale-backend
+
+  # Values come from environment variables (set by docker-compose).
+  # The part after ":" is the fallback used when you run the app outside Docker.
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/flashsale}
+    username: ${SPRING_DATASOURCE_USERNAME:flashsale}
+    password: ${SPRING_DATASOURCE_PASSWORD:flashsale}
+
+  jpa:
+    # "none" on purpose: we do NOT let Hibernate invent the schema.
+    # Real migration files (Flyway) arrive when we design the domain model.
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  devtools:
+    restart:
+      enabled: true
+      # Docker on Windows does not forward file-change events into the container,
+      # so devtools has to poll the mounted source folder instead.
+      poll-interval: 2s
+      quiet-period: 1s
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.flashsale.backend: DEBUG
